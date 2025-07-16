@@ -7,7 +7,7 @@ using namespace std::chrono_literals;
 
 AutowareInterface::AutowareInterface(const rclcpp::NodeOptions & node_options) : Node("Aw_to_interface", node_options)
 {
-    use_motor_revolution_ = this->declare_parameter("use_motor_revolution", false);
+    dyno_mode_ = this->declare_parameter("Dyno_mode", false);
     
     // pub
     AW_velocity_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::VelocityReport>("/vehicle/status/velocity_status", rclcpp::QoS(1));  //autoware_auto_vehicle_msgs
@@ -18,6 +18,7 @@ AutowareInterface::AutowareInterface(const rclcpp::NodeOptions & node_options) :
     TC_steer_cmd_pub_ = this->create_publisher<std_msgs::msg::Float64>("/twist_controller/input/steer_cmd", rclcpp::QoS(1));
     TC_steer_status_pub_ = this->create_publisher<std_msgs::msg::Float64>("/twist_controller/input/steer_status", rclcpp::QoS(1));
     interface_vehicle_status_pub_ = this->create_publisher<std_msgs::msg::Bool>("/vehicle/mode_status", rclcpp::QoS(1));
+    control_cmd_pub_ = this->create_publisher<autoware_control_msgs::msg::Control>("/control/command/control_cmd_", rclcpp::QoS(1));
 
     // sub  
     AW_command_sub = this->create_subscription<autoware_control_msgs::msg::Control>(   //autoware_auto_AckermannControlCommand_msgs
@@ -39,23 +40,6 @@ AutowareInterface::AutowareInterface(const rclcpp::NodeOptions & node_options) :
 
     // timer
     timer_ = this->create_wall_timer(10ms, std::bind(&AutowareInterface::TimerCallback, this));
-    // dyno_mode_ = this->declare_parameter("Dyno_mode", false);
-
-    // // AUTOWARE
-    // AW_velocity_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::VelocityReport>("/vehicle/status/velocity_status", rclcpp::QoS(1));
-    // AW_steering_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::SteeringReport>("/vehicle/status/steering_status", rclcpp::QoS(1));
-    // AW_control_mode_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::ControlModeReport>("/vehicle/status/control_mode",rclcpp::QoS(1));
-
-    // // CAN
-    // interface_can_sub_ = this->create_subscription<can_msgs::msg::Frame>(
-    //     "/socketcan/interface/from_can_bus", rclcpp::QoS(1), std::bind(&AutowareInterface::interface_can_data_callback, this, std::placeholders::_1));
-    // interface_can_pub_ = this->create_publisher<can_msgs::msg::Frame>(
-    //     "/socketcan/interface/to_can_bus", rclcpp::QoS(1));
-    // motor_can_sub_ = this->create_subscription<can_msgs::msg::Frame>(
-    //     "/socketcan/motor/from_can_bus", rclcpp::QoS(1), std::bind(&AutowareInterface::motor_can_data_callback, this, std::placeholders::_1));
-
-    // // Timer
-    // timer_ = this->create_wall_timer(10ms, std::bind(&AutowareInterface::TimerCallback, this));
 }
 
 void AutowareInterface::interface_can_data_callback(const can_msgs::msg::Frame::SharedPtr msg)
@@ -65,17 +49,18 @@ void AutowareInterface::interface_can_data_callback(const can_msgs::msg::Frame::
         float speed_data = msg->data[5] << 8 | msg->data[4];
         
         speed_data *= 0.01;
-
         autoware_vehicle_msgs::msg::VelocityReport AW_velocity_status_msg;  //autoware_auto_vehicle_msgs
         AW_velocity_status_msg.header.stamp = this->now();
         AW_velocity_status_msg.header.frame_id = "base_link";
         AW_velocity_status_msg.longitudinal_velocity = speed_data;
-        AW_velocity_pub_->publish(AW_velocity_status_msg);
 
         std_msgs::msg::Float64 TC_velocity_msg;
         TC_velocity_msg.data = speed_data;
-        if(!use_motor_revolution_)
+
+        this->get_parameter("Dyno_mode", dyno_mode_);
+        if(!dyno_mode_)
         {
+            AW_velocity_pub_->publish(AW_velocity_status_msg);
             TC_velocity_status_pub_->publish(TC_velocity_msg);
         }
     }
@@ -92,7 +77,8 @@ void AutowareInterface::interface_can_data_callback(const can_msgs::msg::Frame::
         steer_data -= 5200.f;
         steer_data *= 0.01071f;
         steer_data /= RAD2DEG;
-        
+        steer_angle_ = steer_data;
+
         autoware_vehicle_msgs::msg::SteeringReport steering_msg;    //autoware_auto_vehicle_msgs
         steering_msg.stamp = this->now();
         steering_msg.steering_tire_angle = steer_data;
@@ -133,11 +119,21 @@ void AutowareInterface::motor_can_data_callback(const can_msgs::msg::Frame::Shar
         
         double vehicle_speed_data = motor_rpm * MY_PI * WHEEL_DIAMETER / GEAR_RATIO;
         vehicle_speed_data /= 60; //m/s
+        velocity_ = vehicle_speed_data;
 
+        autoware_vehicle_msgs::msg::VelocityReport AW_velocity_status_msg;
+        AW_velocity_status_msg.header.stamp = this->now();
+        AW_velocity_status_msg.header.frame_id = "base_link";
+        AW_velocity_status_msg.longitudinal_velocity = vehicle_speed_data;
+        RCLCPP_INFO(rclcpp::get_logger("test"), "%f", vehicle_speed_data);
+        
         std_msgs::msg::Float64 TC_motor_velocity_msg;
         TC_motor_velocity_msg.data = vehicle_speed_data;
-        if(use_motor_revolution_)
+
+        this->get_parameter("Dyno_mode", dyno_mode_);
+        if(dyno_mode_)
         {
+            AW_velocity_pub_->publish(AW_velocity_status_msg);
             TC_motor_velocity_status_pub_->publish(TC_motor_velocity_msg);
         }
     }
@@ -195,6 +191,11 @@ void AutowareInterface::TimerCallback()
     can_data1.data[0] = TC_steer_output_cmd_1;
     can_data1.data[1] = TC_steer_output_cmd_2;
     interface_can_pub_->publish(can_data1);
+
+    autoware_control_msgs::msg::Control control_msg;
+    control_msg.lateral.steering_tire_angle = steer_angle_;
+    control_msg.longitudinal.velocity = velocity_;
+    control_cmd_pub_->publish(control_msg);
 }
 } // namespace autoware_interface_ns
 #include <rclcpp_components/register_node_macro.hpp>

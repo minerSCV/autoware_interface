@@ -51,7 +51,8 @@ class AutowareInterface : public rclcpp::Node
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr TC_steer_cmd_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr TC_steer_status_pub_;
         rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr interface_vehicle_status_pub_;
-        
+        rclcpp::Publisher<autoware_control_msgs::msg::Control>::SharedPtr control_cmd_pub_;
+
         // Sub
         rclcpp::Subscription<autoware_control_msgs::msg::Control>::SharedPtr AW_command_sub;   //autoware_auto_control_msgs::msg::AckermannControlCommand
         rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr TC_throttle_cmd;
@@ -69,8 +70,10 @@ class AutowareInterface : public rclcpp::Node
         float TC_throttle_output_cmd_ = 0.0;
         float TC_brake_output_cmd_ = 0.0;
         int16_t TC_steer_output_cmd_ = 0;
-        bool use_motor_revolution_ = false;
-        
+        bool dyno_mode_ = false;
+        float steer_angle_ = 0.0;
+        float velocity_ = 0.0;
+
         void interface_can_data_callback(const can_msgs::msg::Frame::SharedPtr msg);
         void motor_can_data_callback(const can_msgs::msg::Frame::SharedPtr msg);
         void AwCmd_callback(const autoware_control_msgs::msg::Control::SharedPtr msg);    //autoware_auto_control_msgs::msg::AckermannControlCommand::SharedPtr
