@@ -15,8 +15,6 @@
 #include "autoware_vehicle_msgs/msg/steering_report.hpp"
 #include "autoware_vehicle_msgs/msg/control_mode_report.hpp"
 #include "autoware_control_msgs/msg/control.hpp"
-// #include "autoware_control_msgs/msg/lateral.hpp"
-// #include "autoware_control_msgs/msg/longitudinal.hpp"
 
 
 // motor revolution
@@ -43,8 +41,9 @@ class AutowareInterface : public rclcpp::Node
 
     private:
         // Pub
-        rclcpp::Publisher<autoware_vehicle_msgs::msg::VelocityReport>::SharedPtr AW_velocity_pub_;   //autoware_auto_vehicle_msgs
-        rclcpp::Publisher<autoware_vehicle_msgs::msg::SteeringReport>::SharedPtr AW_steer_angle_pub_;  //autoware_auto_vehicle_msgs
+        rclcpp::Publisher<autoware_vehicle_msgs::msg::VelocityReport>::SharedPtr AW_velocity_pub_;   
+        rclcpp::Publisher<autoware_vehicle_msgs::msg::SteeringReport>::SharedPtr AW_steer_angle_pub_;
+        rclcpp::Publisher<autoware_vehicle_msgs::msg::SteeringReport>::SharedPtr AW_control_mode_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr TC_velocity_cmd_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr TC_velocity_status_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr TC_motor_velocity_status_pub_;
@@ -54,7 +53,8 @@ class AutowareInterface : public rclcpp::Node
         rclcpp::Publisher<autoware_control_msgs::msg::Control>::SharedPtr control_cmd_pub_;
 
         // Sub
-        rclcpp::Subscription<autoware_control_msgs::msg::Control>::SharedPtr AW_command_sub;   //autoware_auto_control_msgs::msg::AckermannControlCommand
+        rclcpp::Subscription<autoware_control_msgs::msg::Control>::SharedPtr AW_command_sub;
+        rclcpp::Subscription<autoware_control_msgs::msg::Control>::SharedPtr AW_control_mode_sub; 
         rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr TC_throttle_cmd;
         rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr TC_brake_cmd;
         rclcpp::Subscription<std_msgs::msg::Int16>::SharedPtr TC_steer_cmd;
@@ -76,7 +76,7 @@ class AutowareInterface : public rclcpp::Node
 
         void interface_can_data_callback(const can_msgs::msg::Frame::SharedPtr msg);
         void motor_can_data_callback(const can_msgs::msg::Frame::SharedPtr msg);
-        void AwCmd_callback(const autoware_control_msgs::msg::Control::SharedPtr msg);    //autoware_auto_control_msgs::msg::AckermannControlCommand::SharedPtr
+        void AwCmd_callback(const autoware_control_msgs::msg::Control::SharedPtr msg);
         void TCthrottle_callback(const std_msgs::msg::Float64::SharedPtr msg);
         void TCbrake_callback(const std_msgs::msg::Float64::SharedPtr msg);
         void TCsteer_callback(const std_msgs::msg::Int16::SharedPtr msg);

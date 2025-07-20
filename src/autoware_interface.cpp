@@ -10,8 +10,9 @@ AutowareInterface::AutowareInterface(const rclcpp::NodeOptions & node_options) :
     dyno_mode_ = this->declare_parameter("Dyno_mode", false);
     
     // pub
-    AW_velocity_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::VelocityReport>("/vehicle/status/velocity_status", rclcpp::QoS(1));  //autoware_auto_vehicle_msgs
-    AW_steer_angle_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::SteeringReport>("/vehicle/status/steering_status", rclcpp::QoS(1));    //autoware_auto_vehicle_msgs
+    AW_velocity_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::VelocityReport>("/vehicle/status/velocity_status", rclcpp::QoS(1));  
+    AW_steer_angle_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::SteeringReport>("/vehicle/status/steering_status", rclcpp::QoS(1));    
+    AW_control_mode_pub_ = this->create_publisher<autoware_vehicle_msgs::msg::ControlModeReport>("/vehicle/status/control_mode", rclcpp::QoS(1));    
     TC_velocity_cmd_pub_ = this->create_publisher<std_msgs::msg::Float64>("/twist_controller/input/velocity_cmd", rclcpp::QoS(1));
     TC_velocity_status_pub_ = this->create_publisher<std_msgs::msg::Float64>("/twist_controller/input/velocity_status", rclcpp::QoS(1));
     TC_motor_velocity_status_pub_ = this->create_publisher<std_msgs::msg::Float64>("/twist_controller/input/velocity_status", rclcpp::QoS(1));
@@ -21,8 +22,10 @@ AutowareInterface::AutowareInterface(const rclcpp::NodeOptions & node_options) :
     control_cmd_pub_ = this->create_publisher<autoware_control_msgs::msg::Control>("/control/command/control_cmd_", rclcpp::QoS(1));
 
     // sub  
-    AW_command_sub = this->create_subscription<autoware_control_msgs::msg::Control>(   //autoware_auto_AckermannControlCommand_msgs
+    AW_command_sub = this->create_subscription<autoware_control_msgs::msg::Control>(   
         "/control/command/control_cmd", rclcpp::QoS(1), std::bind(&AutowareInterface::AwCmd_callback, this, std::placeholders::_1));
+    AW_control_mode_sub = this->create_subscription<autoware_control_msgs::msg::Control>(   
+        "/control/command/control_mode", rclcpp::QoS(1), std::bind(&AutowareInterface::AwCtrlMod_callback, this, std::placeholders::_1));
     TC_throttle_cmd = this->create_subscription<std_msgs::msg::Float64>(
         "/twist_controller/output/throttle_cmd", rclcpp::QoS(1), std::bind(&AutowareInterface::TCthrottle_callback, this, std::placeholders::_1));
     TC_brake_cmd = this->create_subscription<std_msgs::msg::Float64>(
@@ -49,7 +52,7 @@ void AutowareInterface::interface_can_data_callback(const can_msgs::msg::Frame::
         float speed_data = msg->data[5] << 8 | msg->data[4];
         
         speed_data *= 0.01;
-        autoware_vehicle_msgs::msg::VelocityReport AW_velocity_status_msg;  //autoware_auto_vehicle_msgs
+        autoware_vehicle_msgs::msg::VelocityReport AW_velocity_status_msg;  
         AW_velocity_status_msg.header.stamp = this->now();
         AW_velocity_status_msg.header.frame_id = "base_link";
         AW_velocity_status_msg.longitudinal_velocity = speed_data;
@@ -79,7 +82,7 @@ void AutowareInterface::interface_can_data_callback(const can_msgs::msg::Frame::
         steer_data /= RAD2DEG;
         steer_angle_ = steer_data;
 
-        autoware_vehicle_msgs::msg::SteeringReport steering_msg;    //autoware_auto_vehicle_msgs
+        autoware_vehicle_msgs::msg::SteeringReport steering_msg;    
         steering_msg.stamp = this->now();
         steering_msg.steering_tire_angle = steer_data;
         AW_steer_angle_pub_->publish(steering_msg);
@@ -139,16 +142,24 @@ void AutowareInterface::motor_can_data_callback(const can_msgs::msg::Frame::Shar
     }
 }
 
-void AutowareInterface::AwCmd_callback(const autoware_control_msgs::msg::Control::SharedPtr msg)   //autoware_auto_AckermannControlCommand_msgs
+void AutowareInterface::AwCmd_callback(const autoware_control_msgs::msg::Control::SharedPtr msg)   
 {
     std_msgs::msg::Float64 TC_velocity_cmd_msg;
     std_msgs::msg::Float64 TC_steer_cmd_msg;
 
-    TC_velocity_cmd_msg.data = msg->longitudinal.velocity;  //.speed
+    TC_velocity_cmd_msg.data = msg->longitudinal.velocity;
     TC_steer_cmd_msg.data = msg->lateral.steering_tire_angle;
 
     TC_velocity_cmd_pub_->publish(TC_velocity_cmd_msg);
     TC_steer_cmd_pub_->publish(TC_steer_cmd_msg);
+}
+
+void AutowareInterface::AwCtrlMod_callback(const autoware_vehicle_msgs::msg::Control::SharedPtr msg)
+{
+    if(msg->id == ) // write down Control mode can number
+    {
+        
+    }
 }
 
 void AutowareInterface::TCthrottle_callback(const std_msgs::msg::Float64::SharedPtr msg)
