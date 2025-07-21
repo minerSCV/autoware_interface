@@ -9,6 +9,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "can_msgs/msg/frame.hpp"
 #include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/u_int8.hpp"
 #include "std_msgs/msg/int16.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "autoware_vehicle_msgs/msg/velocity_report.hpp"
@@ -43,7 +44,7 @@ class AutowareInterface : public rclcpp::Node
         // Pub
         rclcpp::Publisher<autoware_vehicle_msgs::msg::VelocityReport>::SharedPtr AW_velocity_pub_;   
         rclcpp::Publisher<autoware_vehicle_msgs::msg::SteeringReport>::SharedPtr AW_steer_angle_pub_;
-        rclcpp::Publisher<autoware_vehicle_msgs::msg::SteeringReport>::SharedPtr AW_control_mode_pub_;
+        rclcpp::Publisher<autoware_vehicle_msgs::msg::ControlModeReport>::SharedPtr AW_control_mode_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr TC_velocity_cmd_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr TC_velocity_status_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr TC_motor_velocity_status_pub_;
@@ -77,6 +78,7 @@ class AutowareInterface : public rclcpp::Node
         void interface_can_data_callback(const can_msgs::msg::Frame::SharedPtr msg);
         void motor_can_data_callback(const can_msgs::msg::Frame::SharedPtr msg);
         void AwCmd_callback(const autoware_control_msgs::msg::Control::SharedPtr msg);
+        void AwCtrlMod_callback(const autoware_vehicle_msgs::msg::ControlModeReport::SharedPtr msg);
         void TCthrottle_callback(const std_msgs::msg::Float64::SharedPtr msg);
         void TCbrake_callback(const std_msgs::msg::Float64::SharedPtr msg);
         void TCsteer_callback(const std_msgs::msg::Int16::SharedPtr msg);

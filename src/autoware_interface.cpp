@@ -24,8 +24,6 @@ AutowareInterface::AutowareInterface(const rclcpp::NodeOptions & node_options) :
     // sub  
     AW_command_sub = this->create_subscription<autoware_control_msgs::msg::Control>(   
         "/control/command/control_cmd", rclcpp::QoS(1), std::bind(&AutowareInterface::AwCmd_callback, this, std::placeholders::_1));
-    AW_control_mode_sub = this->create_subscription<autoware_control_msgs::msg::Control>(   
-        "/control/command/control_mode", rclcpp::QoS(1), std::bind(&AutowareInterface::AwCtrlMod_callback, this, std::placeholders::_1));
     TC_throttle_cmd = this->create_subscription<std_msgs::msg::Float64>(
         "/twist_controller/output/throttle_cmd", rclcpp::QoS(1), std::bind(&AutowareInterface::TCthrottle_callback, this, std::placeholders::_1));
     TC_brake_cmd = this->create_subscription<std_msgs::msg::Float64>(
@@ -63,6 +61,7 @@ void AutowareInterface::interface_can_data_callback(const can_msgs::msg::Frame::
         this->get_parameter("Dyno_mode", dyno_mode_);
         if(!dyno_mode_)
         {
+            // sim_speed_ = speed_data;
             AW_velocity_pub_->publish(AW_velocity_status_msg);
             TC_velocity_status_pub_->publish(TC_velocity_msg);
         }
@@ -96,19 +95,25 @@ void AutowareInterface::interface_can_data_callback(const can_msgs::msg::Frame::
     {
         uint8_t vehicle_status = msg->data[4];
         bool vehicle_mode = 0;
+        uint8_t control_mode = 0;
 
         if (vehicle_status == MANULAL)
         {
             vehicle_mode = false;
+            control_mode = 0;
         }
         else if (vehicle_status == AUTONOMOUS)
         {
             vehicle_mode = true;
+            control_mode = 1;
         }
 
         std_msgs::msg::Bool vehicle_status_msg;
         vehicle_status_msg.data = vehicle_mode;
+        autoware_vehicle_msgs::msg::ControlModeReport control_mode_msg;
+        control_mode_msg.mode = control_mode;
         interface_vehicle_status_pub_->publish(vehicle_status_msg);
+        AW_control_mode_pub_->publish(control_mode_msg);
     }
 
 }
@@ -128,7 +133,6 @@ void AutowareInterface::motor_can_data_callback(const can_msgs::msg::Frame::Shar
         AW_velocity_status_msg.header.stamp = this->now();
         AW_velocity_status_msg.header.frame_id = "base_link";
         AW_velocity_status_msg.longitudinal_velocity = vehicle_speed_data;
-        RCLCPP_INFO(rclcpp::get_logger("test"), "%f", vehicle_speed_data);
         
         std_msgs::msg::Float64 TC_motor_velocity_msg;
         TC_motor_velocity_msg.data = vehicle_speed_data;
@@ -136,6 +140,7 @@ void AutowareInterface::motor_can_data_callback(const can_msgs::msg::Frame::Shar
         this->get_parameter("Dyno_mode", dyno_mode_);
         if(dyno_mode_)
         {
+            // sim_speed_ = vehicle_speed_data;
             AW_velocity_pub_->publish(AW_velocity_status_msg);
             TC_motor_velocity_status_pub_->publish(TC_motor_velocity_msg);
         }
@@ -152,14 +157,6 @@ void AutowareInterface::AwCmd_callback(const autoware_control_msgs::msg::Control
 
     TC_velocity_cmd_pub_->publish(TC_velocity_cmd_msg);
     TC_steer_cmd_pub_->publish(TC_steer_cmd_msg);
-}
-
-void AutowareInterface::AwCtrlMod_callback(const autoware_vehicle_msgs::msg::Control::SharedPtr msg)
-{
-    if(msg->id == ) // write down Control mode can number
-    {
-        
-    }
 }
 
 void AutowareInterface::TCthrottle_callback(const std_msgs::msg::Float64::SharedPtr msg)
@@ -189,6 +186,7 @@ void AutowareInterface::TimerCallback()
     can_data.data[1] = 0;
     can_data.data[2] = brake_can;
     can_data.data[3] = 1;
+    // can_data.data[4] = ;    //gear command
     
     interface_can_pub_->publish(can_data);
 
