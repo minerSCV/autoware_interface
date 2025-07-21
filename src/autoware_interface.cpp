@@ -47,9 +47,12 @@ void AutowareInterface::interface_can_data_callback(const can_msgs::msg::Frame::
 {
     if(msg->id == 513) // 201
     {
-        float speed_data = msg->data[5] << 8 | msg->data[4];
+        int16_t raw_data = (msg->data[5] << 8) | msg->data[4];
+        float speed_data = raw_data * 0.01;
+
+        // float speed_data = msg->data[5] << 8 | msg->data[4];
+        // speed_data *= 0.01;
         
-        speed_data *= 0.01;
         autoware_vehicle_msgs::msg::VelocityReport AW_velocity_status_msg;  
         AW_velocity_status_msg.header.stamp = this->now();
         AW_velocity_status_msg.header.frame_id = "base_link";
